@@ -205,6 +205,11 @@ class PerfCounterIO(implicit p: Parameters) extends CoreBundle
   val inc = Input(UInt(log2Ceil(1+retireWidth).W))
 }
 
+class GenericTrace(val bitWidth: Int) extends Bundle {
+  val valid = Bool()
+  val bits = Vec(bitWidth, Bool())
+}
+
 class TracedInstruction(implicit p: Parameters) extends CoreBundle {
   val valid = Bool()
   val iaddr = UInt(coreMaxAddrBits.W)

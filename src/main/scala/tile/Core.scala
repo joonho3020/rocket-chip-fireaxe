@@ -57,6 +57,7 @@ trait CoreParams {
   val traceHasWdata: Boolean
   def traceCustom: Option[Data] = None
   def customIsaExt: Option[String] = None
+  def genericTraceInterfaceWidth: Int = 0
   def customCSRs(implicit p: Parameters): CustomCSRs = new CustomCSRs
 
   def hasSupervisorMode: Boolean = useSupervisor || useVM
@@ -115,6 +116,8 @@ trait HasCoreParameters extends HasTileParameters {
   val customIsaExt = coreParams.customIsaExt
   val traceHasWdata = coreParams.traceHasWdata
 
+  val genericTraceInterfaceWidth = coreParams.genericTraceInterfaceWidth
+
   def vLen = coreParams.vLen
   def sLen = coreParams.sLen
   def eLen = coreParams.eLen(xLen, fLen)
@@ -171,6 +174,7 @@ trait HasCoreIO extends HasTileParameters {
     val fpu = new FPUCoreIO().flip
     val rocc = new RoCCCoreIO(nTotalRoCCCSRs).flip
     val trace = Output(new TraceBundle)
+    val generic_trace = Output(new GenericTrace(genericTraceInterfaceWidth))
     val bpwatch = Vec(coreParams.nBreakpoints, new BPWatch(coreParams.retireWidth)).asOutput
     val cease = Bool().asOutput
     val wfi = Bool().asOutput
