@@ -4,6 +4,7 @@
 package freechips.rocketchip.tile
 
 import Chisel._
+import chisel3.Printable
 import org.chipsalliance.cde.config._
 import freechips.rocketchip.devices.tilelink._
 import freechips.rocketchip.diplomacy._
@@ -55,6 +56,7 @@ class RocketTile private(
   val intOutwardNode = IntIdentityNode()
   val slaveNode = TLIdentityNode()
   val masterNode = visibilityNode
+  val printMasterNode = TLIdentityNode()
 
   val dtim_adapter = tileParams.dcache.flatMap { d => d.scratch.map { s =>
     LazyModule(new ScratchpadSlavePort(AddressSet.misaligned(s, d.dataScratchpadBytes), lazyCoreParamsView.coreDataBytes, tileParams.core.useAtomics && !tileParams.core.useAtomicsOnlyForIO))
@@ -77,7 +79,8 @@ class RocketTile private(
 
   // TODO: this doesn't block other masters, e.g. RoCCs
   tlOtherMastersNode := tile_master_blocker.map { _.node := tlMasterXbar.node } getOrElse { tlMasterXbar.node }
-  masterNode :=* tlOtherMastersNode
+  printMasterNode :=* tlOtherMastersNode
+  masterNode :=* printMasterNode
   DisableMonitors { implicit p => tlSlaveXbar.node :*= slaveNode }
 
   nDCachePorts += 1 /*core */ + (dtim_adapter.isDefined).toInt
@@ -130,10 +133,38 @@ class RocketTile private(
   }
 }
 
+trait HasPrintMessages { this: RocketTileModuleImp =>
+    val (dmem, edge) = outer.printMasterNode.out.head
+
+    when (dmem.a.fire) {
+      Logger.printChannelA(dmem.a.bits)
+    }
+
+    when (dmem.b.fire) {
+      Logger.printChannelB(dmem.b.bits)
+    }
+
+    when (dmem.c.fire) {
+      Logger.printChannelC(dmem.c.bits)
+    }
+
+    when (dmem.d.fire) {
+      Logger.printChannelD(dmem.d.bits)
+    }
+
+    when (dmem.e.fire) {
+      Logger.printChannelE(dmem.e.bits)
+    }
+}
+
+
+
 class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
     with HasFpuOpt
     with HasLazyRoCCModule
-    with HasICacheFrontendModule {
+    with HasICacheFrontendModule 
+    with HasPrintMessages
+    {
   Annotated.params(this, outer.rocketParams)
 
   val core = Module(new Rocket(outer)(outer.p))
@@ -199,4 +230,81 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
 
 trait HasFpuOpt { this: RocketTileModuleImp =>
   val fpuOpt = outer.tileParams.core.fpu.map(params => Module(new FPU(params)(outer.p)))
+}
+
+
+
+object Logger {
+  def logInfo(format: String, args: Bits*) {
+    val loginfo_cycles = RegInit(0.U(64.W))
+    loginfo_cycles := loginfo_cycles + 1.U
+
+    printf("cy: %d, ", loginfo_cycles)
+    printf(Printable.pack(format, args:_*))
+  }
+
+  def printChannelA(a: TLBundleA) {
+    val a_echo = Cat(a.echo.fields.map(_.data.toBits).toSeq)
+    val a_user = Cat(a.user.fields.map(_.data.toBits).toSeq)
+    logInfo("[A] op %x param %x size %x source %x addr %x usr %x echo %x mask %x data %x cor %d\n",
+      a.opcode,
+      a.param,
+      a.size,
+      a.source,
+      a.address,
+      a_user,
+      a_echo,
+      a.mask,
+      a.data,
+      a.corrupt)
+  }
+
+  def printChannelD(d: TLBundleD) {
+    val d_echo = Cat(d.echo.fields.map(_.data.toBits).toSeq)
+    val d_user = Cat(d.user.fields.map(_.data.toBits).toSeq)
+    logInfo("[D] op %x param %x size %x source %x sink %x denied %d user %x echo %x data %x cor %d\n",
+      d.opcode,
+      d.param,
+      d.size,
+      d.source,
+      d.sink,
+      d.denied,
+      d_user,
+      d_echo,
+      d.data,
+      d.corrupt)
+  }
+
+  def printChannelB(b: TLBundleB) {
+    logInfo("[B] op %x param %x size %x source %x addr %x mask %x data %x cor %d\n",
+      b.opcode,
+      b.param,
+      b.size,
+      b.source,
+      b.address,
+      b.mask,
+      b.data,
+      b.corrupt)
+  }
+
+
+  def printChannelC(c: TLBundleC) {
+    val c_echo = Cat(c.echo.fields.map(_.data.toBits).toSeq)
+    val c_user = Cat(c.user.fields.map(_.data.toBits).toSeq)
+    logInfo("[C] op %x param %x size %x source %x addr %x user %x echo %x data %x cor %d\n",
+      c.opcode,
+      c.param,
+      c.size,
+      c.source,
+      c.address,
+      c_user,
+      c_echo,
+      c.data,
+      c.corrupt)
+  }
+
+  def printChannelE(e: TLBundleE) {
+    logInfo("[E] sink %x\n",
+      e.sink)
+  }
 }
