@@ -218,7 +218,7 @@ abstract class BaseTile private (val crossing: ClockCrossingType, q: Parameters)
   def ceaseNode: IntOutwardNode       // Tile has ceased to retire instructions
   def wfiNode: IntOutwardNode         // Tile is waiting for an interrupt
 
-  protected val tlOtherMastersNode = TLIdentityNode()
+  val tlOtherMastersNode = TLIdentityNode()
   protected val tlMasterXbar = LazyModule(new TLXbar)
   protected val tlSlaveXbar = LazyModule(new TLXbar)
   protected val intXbar = LazyModule(new IntXbar)
