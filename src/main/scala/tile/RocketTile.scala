@@ -117,10 +117,10 @@ class RocketTile private(
       else TLBuffer(BufferParams.none, BufferParams.flow, BufferParams.none, BufferParams.flow, BufferParams(1))
     case _ => 
       if (latency != 0) {
-        val chainNode = TLBuffer.chainNode(latency)
-        val tileSideSkidNode = TLSkidBuffer(BufferParams.none    , BufferParams(latency), BufferParams.none    , BufferParams(latency), BufferParams.none    )
-        val busSideSkidNode  = TLSkidBuffer(BufferParams(latency), BufferParams.none    , BufferParams(latency), BufferParams.none    , BufferParams(latency))
-        busSideSkidNode :=* chainNode :=* tileSideSkidNode
+        val latencyInjectNode = TLLatInjectBuffer(BufferParams(0, false, false, latency))
+        val tileSideSkidNode  = TLSkidBuffer(BufferParams.none    , BufferParams(latency), BufferParams.none    , BufferParams(latency), BufferParams.none    )
+        val busSideSkidNode   = TLSkidBuffer(BufferParams(latency), BufferParams.none    , BufferParams(latency), BufferParams.none    , BufferParams(latency))
+        busSideSkidNode :=* latencyInjectNode :=* tileSideSkidNode
       }
       else TLBuffer(BufferParams.none)
   }

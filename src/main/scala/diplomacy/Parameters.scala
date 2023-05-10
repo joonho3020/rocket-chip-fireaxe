@@ -254,7 +254,7 @@ object AddressSet
   }
 }
 
-case class BufferParams(depth: Int, flow: Boolean, pipe: Boolean)
+case class BufferParams(depth: Int, flow: Boolean, pipe: Boolean, lat: Int = 0)
 {
   require (depth >= 0, "Buffer depth must be >= 0")
   def isDefined = depth > 0
@@ -284,6 +284,33 @@ case class BufferParams(depth: Int, flow: Boolean, pipe: Boolean)
       buf.io.enq.valid := x.valid
       buf.io.deq
     }
+
+  def latinject[T <: Data](x: DecoupledIO[T]) =
+    if (lat == 0) x else {
+      val bitBuf = Seq.fill(lat)(Reg(x.bits))
+      val valBuf = Seq.fill(lat)(Reg(Bool()))
+      val rdyBuf = Seq.fill(lat)(Reg(Bool()))
+
+      valBuf.foldLeft(x.valid)((cur, nxt) => {
+        nxt := cur
+        nxt
+      })
+      bitBuf.foldLeft(x.bits )((cur, nxt) => {
+        nxt := cur
+        nxt
+      })
+      rdyBuf.foldLeft(x.ready)((cur, nxt) => {
+        cur := nxt
+        nxt
+      })
+
+      val out = Wire(DecoupledIO(x.bits))
+      out.valid   := valBuf.last
+      out.bits    := bitBuf.last
+      rdyBuf.last := out.ready
+      out
+    }
+
 
   override def toString() = "BufferParams:%d%s%s".format(depth, if (flow) "F" else "", if (pipe) "P" else "")
 }
