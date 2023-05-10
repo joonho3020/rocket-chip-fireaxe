@@ -87,6 +87,18 @@ class WithCoherentBusTopology extends Config((site, here, up) => {
       driveMBusClockFromSBus = site(DriveClocksFromSBus)))
 })
 
+
+/*
+class BoundaryBufferRocketConfig extends Config(
+  new freechips.rocketchip.subsystem.WithNBigCoresWithBoundaryBuffers(1) ++
+  new chipyard.config.AbstractConfig)
+
+class LatencyInjectionRocketConfig extends Config(
+  new freechips.rocketchip.subsystem.WithNBigCoresWithLatencyInjection(n=1, latency=28) ++
+  new chipyard.config.AbstractConfig)
+*/
+
+
 class WithNBigCoresWithLatencyInjection(
   n: Int,
   latency: Int = 1,

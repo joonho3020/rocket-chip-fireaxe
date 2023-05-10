@@ -83,7 +83,6 @@ trait SinksExternalInterrupts { this: BaseTile =>
       if (lat == 0) {
         c := i 
       } else {
-        println(s"decodeCoreInterrupts latency ${lat}")
         c := ShiftRegister(i, lat)
       }
     }
