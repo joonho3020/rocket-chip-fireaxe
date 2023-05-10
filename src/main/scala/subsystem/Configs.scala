@@ -87,6 +87,66 @@ class WithCoherentBusTopology extends Config((site, here, up) => {
       driveMBusClockFromSBus = site(DriveClocksFromSBus)))
 })
 
+class WithNBigCoresWithLatencyInjection(
+  n: Int,
+  latency: Int = 1,
+  overrideIdOffset: Option[Int] = None,
+  crossing: RocketCrossingParams = RocketCrossingParams()
+) extends Config((site, here, up) => {
+  case TilesLocated(InSubsystem) => {
+    val prev = up(TilesLocated(InSubsystem), site)
+    val idOffset = overrideIdOffset.getOrElse(prev.size)
+    val big = RocketTileParams(
+      core   = RocketCoreParams(mulDiv = Some(MulDivParams(
+        mulUnroll = 8,
+        mulEarlyOut = true,
+        divEarlyOut = true))),
+      dcache = Some(DCacheParams(
+        rowBits = site(SystemBusKey).beatBits,
+        nMSHRs = 0,
+        blockBytes = site(CacheBlockBytes))),
+      icache = Some(ICacheParams(
+        rowBits = site(SystemBusKey).beatBits,
+        blockBytes = site(CacheBlockBytes))),
+      boundaryBuffers = false,
+      latencyInjection = 28
+    )
+    List.tabulate(n)(i => RocketTileAttachParams(
+      big.copy(hartId = i + idOffset),
+      crossing
+    )) ++ prev
+  }
+})
+
+class WithNBigCoresWithBoundaryBuffers(
+  n: Int,
+  overrideIdOffset: Option[Int] = None,
+  crossing: RocketCrossingParams = RocketCrossingParams()
+) extends Config((site, here, up) => {
+  case TilesLocated(InSubsystem) => {
+    val prev = up(TilesLocated(InSubsystem), site)
+    val idOffset = overrideIdOffset.getOrElse(prev.size)
+    val big = RocketTileParams(
+      core   = RocketCoreParams(mulDiv = Some(MulDivParams(
+        mulUnroll = 8,
+        mulEarlyOut = true,
+        divEarlyOut = true))),
+      dcache = Some(DCacheParams(
+        rowBits = site(SystemBusKey).beatBits,
+        nMSHRs = 0,
+        blockBytes = site(CacheBlockBytes))),
+      icache = Some(ICacheParams(
+        rowBits = site(SystemBusKey).beatBits,
+        blockBytes = site(CacheBlockBytes))),
+      boundaryBuffers = true
+    )
+    List.tabulate(n)(i => RocketTileAttachParams(
+      big.copy(hartId = i + idOffset),
+      crossing
+    )) ++ prev
+  }
+})
+
 class WithNBigCores(
   n: Int,
   overrideIdOffset: Option[Int] = None,

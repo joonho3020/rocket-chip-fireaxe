@@ -26,7 +26,8 @@ case class RocketTileParams(
     beuAddr: Option[BigInt] = None,
     blockerCtrlAddr: Option[BigInt] = None,
     clockSinkParams: ClockSinkParameters = ClockSinkParameters(),
-    boundaryBuffers: Boolean = false // if synthesized with hierarchical PnR, cut feed-throughs?
+    boundaryBuffers: Boolean = false, // if synthesized with hierarchical PnR, cut feed-throughs?
+    latencyInjection: Int = 0
     ) extends InstantiableTileParams[RocketTile] {
   require(icache.isDefined)
   require(dcache.isDefined)
@@ -102,13 +103,23 @@ class RocketTile private(
     Resource(cpuDevice, "reg").bind(ResourceAddress(staticIdForMetadataUseOnly))
   }
 
+  val latency = rocketParams.latencyInjection
+
   override lazy val module = new RocketTileModuleImp(this)
 
   override def makeMasterBoundaryBuffers(crossing: ClockCrossingType)(implicit p: Parameters) = crossing match {
     case _: RationalCrossing =>
-      if (!rocketParams.boundaryBuffers) TLBuffer(BufferParams.none)
+      if (latency != 0) TLBuffer.chainNode(latency)
+      else if (!rocketParams.boundaryBuffers) TLBuffer(BufferParams.none)
       else TLBuffer(BufferParams.none, BufferParams.flow, BufferParams.none, BufferParams.flow, BufferParams(1))
-    case _ => TLBuffer(BufferParams.none)
+    case _ => 
+      if (latency != 0) {
+        val chainNode = TLBuffer.chainNode(latency)
+        val tileSideSkidNode = TLSkidBuffer(BufferParams.none    , BufferParams(latency), BufferParams.none    , BufferParams(latency), BufferParams.none    )
+        val busSideSkidNode  = TLSkidBuffer(BufferParams(latency), BufferParams.none    , BufferParams(latency), BufferParams.none    , BufferParams(latency))
+        busSideSkidNode :=* chainNode :=* tileSideSkidNode
+      }
+      else TLBuffer(BufferParams.none)
   }
 
   override def makeSlaveBoundaryBuffers(crossing: ClockCrossingType)(implicit p: Parameters) = crossing match {
@@ -139,7 +150,7 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
 
   outer.reportWFI(Some(core.io.wfi))
 
-  outer.decodeCoreInterrupts(core.io.interrupts) // Decode the interrupt vector
+  outer.decodeCoreInterrupts(core.io.interrupts, outer.latency) // Decode the interrupt vector
 
   outer.bus_error_unit.foreach { beu =>
     core.io.interrupts.buserror.get := beu.module.io.interrupt

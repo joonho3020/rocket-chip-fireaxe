@@ -119,6 +119,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
     with HasRocketCoreParameters
     with HasCoreIO {
 
+  dontTouch(io)
+
   val clock_en_reg = RegInit(true.B)
   val long_latency_stall = Reg(Bool())
   val id_reg_pause = Reg(Bool())

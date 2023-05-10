@@ -275,8 +275,17 @@ case class BufferParams(depth: Int, flow: Boolean, pipe: Boolean)
       sq.io.deq
     }
 
-  override def toString() = "BufferParams:%d%s%s".format(depth, if (flow) "F" else "", if (pipe) "P" else "")
+  def skid[T <: Data](x: DecoupledIO[T]) =
+    if (!isDefined) x else {
+      val maxInFlight = 2 * depth
+      val buf = Module(new Queue(x.bits, maxInFlight, flow=true))
+      x.ready := (buf.io.count === 0.U)
+      buf.io.enq.bits  := x.bits
+      buf.io.enq.valid := x.valid
+      buf.io.deq
+    }
 
+  override def toString() = "BufferParams:%d%s%s".format(depth, if (flow) "F" else "", if (pipe) "P" else "")
 }
 
 object BufferParams

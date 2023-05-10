@@ -19,6 +19,58 @@ class TLBufferNode (
   override def circuitIdentity = List(a,b,c,d,e).forall(_ == BufferParams.none)
 }
 
+class TLSkidBuffer(
+  a: BufferParams,
+  b: BufferParams,
+  c: BufferParams,
+  d: BufferParams,
+  e: BufferParams)(implicit p: Parameters) extends LazyModule
+{
+  def this(ace: BufferParams, bd: BufferParams)(implicit p: Parameters) = this(ace, bd, ace, bd, ace)
+  def this(abcde: BufferParams)(implicit p: Parameters) = this(abcde, abcde)
+  def this()(implicit p: Parameters) = this(BufferParams.default)
+
+  val node = new TLBufferNode(a, b, c, d, e)
+
+  lazy val module = new Impl
+  class Impl extends LazyModuleImp(this) {
+    (node.in zip node.out) foreach { case ((in, edgeIn), (out, edgeOut)) =>
+      out.a <> a.skid(in .a)
+      in .d <> d.skid(out.d)
+
+      if (edgeOut.manager.anySupportAcquireB && edgeOut.client.anySupportProbe) {
+        in .b <> b.skid(out.b)
+        out.c <> c.skid(in .c)
+        out.e <> e.skid(in .e)
+      } else {
+        in.b.valid  := Bool(false)
+        in.c.ready  := Bool(true)
+        in.e.ready  := Bool(true)
+        out.b.ready := Bool(true)
+        out.c.valid := Bool(false)
+        out.e.valid := Bool(false)
+      }
+    }
+  }
+}
+
+object TLSkidBuffer
+{
+  def apply()                                   (implicit p: Parameters): TLNode = apply(BufferParams.default)
+  def apply(abcde: BufferParams)                (implicit p: Parameters): TLNode = apply(abcde, abcde)
+  def apply(ace: BufferParams, bd: BufferParams)(implicit p: Parameters): TLNode = apply(ace, bd, ace, bd, ace)
+  def apply(
+      a: BufferParams,
+      b: BufferParams,
+      c: BufferParams,
+      d: BufferParams,
+      e: BufferParams)(implicit p: Parameters): TLNode =
+  {
+    val buffer = LazyModule(new TLSkidBuffer(a, b, c, d, e))
+    buffer.node
+  }
+}
+
 class TLBuffer(
   a: BufferParams,
   b: BufferParams,

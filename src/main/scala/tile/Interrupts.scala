@@ -67,7 +67,7 @@ trait SinksExternalInterrupts { this: BaseTile =>
   }
 
   // go from flat diplomatic Interrupts to bundled TileInterrupts
-  def decodeCoreInterrupts(core: TileInterrupts): Unit = {
+  def decodeCoreInterrupts(core: TileInterrupts, lat: Int = 0): Unit = {
     val async_ips = Seq(core.debug)
     val periph_ips = Seq(
       core.msip,
@@ -79,7 +79,14 @@ trait SinksExternalInterrupts { this: BaseTile =>
     val core_ips = core.lip
 
     val (interrupts, _) = intSinkNode.in(0)
-    (async_ips ++ periph_ips ++ seip ++ core_ips).zip(interrupts).foreach { case(c, i) => c := i }
+    (async_ips ++ periph_ips ++ seip ++ core_ips).zip(interrupts).foreach { case(c, i) => 
+      if (lat == 0) {
+        c := i 
+      } else {
+        println(s"decodeCoreInterrupts latency ${lat}")
+        c := ShiftRegister(i, lat)
+      }
+    }
   }
 }
 
