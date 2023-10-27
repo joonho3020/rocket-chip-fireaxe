@@ -629,7 +629,7 @@ class WithCloneRocketTiles(n: Int = 1, cloneHart: Int = 0, overrideIdOffset: Opt
     val tileAttachParams = prev(cloneHart).asInstanceOf[RocketTileAttachParams]
     (0 until n).map { i =>
       CloneTileAttachParams(cloneHart, tileAttachParams.copy(
-        tileParams = tileAttachParams.tileParams.copy(hartId = i + idOffset)
+        tileParams = tileAttachParams.tileParams.copy(hartId = i + idOffset, cloneTile=true)
       ))
     } ++ prev
   }
